@@ -1,0 +1,85 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 12 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Get Version
+        run: |
+          DOCKER_VERSION=$(curl -s "https://api.github.com/repos/moby/moby/releases/latest" | jq -r ".tag_name")
+          wget -q https://github.com/docker/docker-ce-packaging/raw/master/common.mk
+          wget -q https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION#*v}.tgz
+          tar -xf docker-${DOCKER_VERSION#*v}.tgz
+          GO_VERSION=$(grep '^GO_VERSION' common.mk | awk -F ":=" '{print $2}')
+          RUNC_VERSION=$(./docker/runc --version | grep "runc version" | awk '{print $3}')
+          [[ $RUNC_VERSION != v* ]] && RUNC_VERSION="v$RUNC_VERSION"
+          CONTAINERD_VERSION=$(./docker/containerd --version | awk '{print $3}')
+          [[ $CONTAINERD_VERSION != v* ]] && CONTAINERD_VERSION="v$CONTAINERD_VERSION"
+          TINI_VERSION=$(./docker/docker-init --version | awk '{print $3}')
+          [[ $TINI_VERSION != v* ]] && TINI_VERSION="v$TINI_VERSION"
+          rm -rf common.mk docker*
+          sed -i "s@ARG GO_VERSION=.*@ARG GO_VERSION=${GO_VERSION}@" Dockerfile
+          sed -i "s@ARG RUNC_VERSION=.*@ARG RUNC_VERSION=${RUNC_VERSION}@" Dockerfile
+          sed -i "s@ARG CONTAINERD_VERSION=.*@ARG CONTAINERD_VERSION=${CONTAINERD_VERSION}@" Dockerfile
+          sed -i "s@ARG DOCKER_VERSION=.*@ARG DOCKER_VERSION=${DOCKER_VERSION}@" Dockerfile
+          sed -i "s@ARG TINI_VERSION=.*@ARG TINI_VERSION=${TINI_VERSION}@" Dockerfile
+          echo "DOCKER_VERSION=${DOCKER_VERSION}" >> $GITHUB_ENV
+          echo ""
+          echo "========== Build Args =========="
+          echo "GO_VERSION=${GO_VERSION}"
+          echo "RUNC_VERSION=${RUNC_VERSION}"
+          echo "CONTAINERD_VERSION=${CONTAINERD_VERSION}"
+          echo "DOCKER_VERSION=${DOCKER_VERSION}"
+          echo "TINI_VERSION=${TINI_VERSION}"
+
+
+      - name: Check Release
+        id: check-release
+        run: |
+          gh release view ${{ env.DOCKER_VERSION }} -R ${{ github.repository }} >/dev/null 2>&1 || echo "create=1" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Image
+        if : steps.check-release.outputs.create == '1'
+        run: |
+          docker buildx build --platform linux/riscv64 -t dokcer-static-riscv64:${{ env.DOCKER_VERSION }} . --load
+
+      - name: Create Tag
+        if : steps.check-release.outputs.create == '1'
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git add .
+          git commit -m "Release ${{ env.DOCKER_VERSION }}"
+          git tag ${{ env.DOCKER_VERSION }}
+          git push origin HEAD ${{ env.DOCKER_VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        if : steps.check-release.outputs.create == '1'
+        run: |
+          gh release create ${{ env.DOCKER_VERSION }} -R ${{ github.repository }} --notes "**Full Changelog**: [${{ env.DOCKER_VERSION }}](https://github.com/moby/moby/releases/tag/${{ env.DOCKER_VERSION }})"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upgrade Release
+        if : steps.check-release.outputs.create == '1'
+        run: |
+          docker run --rm -v $(pwd)/dist:/dist dokcer-static-riscv64:${{ env.DOCKER_VERSION }}
+          ls -al dist
+          gh release upload ${{ env.DOCKER_VERSION }} -R ${{ github.repository }} dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
