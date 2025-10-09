@@ -2,7 +2,7 @@ FROM buildpack-deps:trixie-curl AS build
 
 ENV PATH /usr/local/go/bin:$PATH
 
-ARG ARG GO_VERSION=1.24.7
+ARG ARG GO_VERSION=1.24.8
 ENV GOLANG_VERSION ${GO_VERSION}
 
 RUN set -eux; \
@@ -69,7 +69,7 @@ RUN set -eux; \
 	; \
 	rm -rf /var/lib/apt/lists/*
 
-ARG ARG GO_VERSION=1.24.7
+ARG ARG GO_VERSION=1.24.8
 ENV GOLANG_VERSION ${GO_VERSION}
 
 # don't auto-upgrade the gotoolchain
@@ -85,7 +85,7 @@ WORKDIR $GOPATH
 
 ARG RUNC_VERSION=v1.3.0
 ARG CONTAINERD_VERSION=v1.7.28
-ARG DOCKER_VERSION=v28.5.0
+ARG DOCKER_VERSION=v28.5.1
 ARG TINI_VERSION=v0.19.0
 
 ENV GOPROXY=https://goproxy.io,direct \
@@ -165,7 +165,7 @@ RUN set -ex; \
     rm -rf docker
 
 FROM debian:trixie-slim
-ARG DOCKER_VERSION=v28.5.0
+ARG DOCKER_VERSION=v28.5.1
 
 COPY --from=builder /opt /opt
 WORKDIR /opt
