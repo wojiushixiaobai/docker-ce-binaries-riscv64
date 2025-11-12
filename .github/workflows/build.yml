@@ -18,6 +18,14 @@ jobs:
       - name: Get Version
         run: |
           DOCKER_VERSION=$(curl -s "https://api.github.com/repos/moby/moby/releases/latest" | jq -r ".tag_name")
+          # docker-v29.0.0 --> v29.0.0
+          DOCKER_VERSION=${DOCKER_VERSION#*-}
+
+          if [ -z "$DOCKER_VERSION" ] || [ "$DOCKER_VERSION" == "null" ]; then
+            echo "Failed to get latest version"
+            exit 1
+          fi
+
           wget -q https://github.com/docker/docker-ce-packaging/raw/master/common.mk
           wget -q https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION#*v}.tgz
           tar -xf docker-${DOCKER_VERSION#*v}.tgz
