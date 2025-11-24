@@ -85,7 +85,7 @@ WORKDIR $GOPATH
 
 ARG RUNC_VERSION=v1.3.3
 ARG CONTAINERD_VERSION=v2.1.5
-ARG DOCKER_VERSION=v29.0.2
+ARG DOCKER_VERSION=v29.0.3
 ARG TINI_VERSION=v0.19.0
 
 ENV GOPROXY=https://goproxy.io,direct \
@@ -165,7 +165,7 @@ RUN set -ex; \
     rm -rf docker
 
 FROM debian:trixie-slim
-ARG DOCKER_VERSION=v29.0.2
+ARG DOCKER_VERSION=v29.0.3
 
 COPY --from=builder /opt /opt
 WORKDIR /opt
