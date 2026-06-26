@@ -84,8 +84,8 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 1777 "$GOPATH"
 WORKDIR $GOPATH
 
 ARG RUNC_VERSION=v1.3.6
-ARG CONTAINERD_VERSION=v2.2.4
-ARG DOCKER_VERSION=v29.6.0
+ARG CONTAINERD_VERSION=v2.2.5
+ARG DOCKER_VERSION=v29.6.1
 ARG TINI_VERSION=v0.19.0
 
 ENV GOPROXY=https://goproxy.io,direct \
@@ -165,7 +165,7 @@ RUN set -ex; \
     rm -rf docker
 
 FROM debian:trixie-slim
-ARG DOCKER_VERSION=v29.6.0
+ARG DOCKER_VERSION=v29.6.1
 
 COPY --from=builder /opt /opt
 WORKDIR /opt
